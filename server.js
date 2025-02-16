@@ -7,7 +7,7 @@ No part of this assignment has been copied manually or electronically from any o
 Name: AMINU JIM OLUWAFERANMI
 Student ID: 131301236
 Date: February 13, 2025
-Vercel Web App URL: 
+Vercel Web App URL: https://vercel.com/jimhooks-projects/web322-app
 GitHub Repository URL: https://github.com/jimhooks/web322-app
 ********************************************************************************/ 
 
