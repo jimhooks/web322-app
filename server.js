@@ -15,9 +15,11 @@ const express = require('express');
 const path = require('path'); 
 const storeService = require('./store-service'); 
 
-	const multer = require("multer");
-	const cloudinary = require('cloudinary').v2;
-	const streamifier = require('streamifier');
+const multer = require("multer");
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
+const sanitizeHtml = require("sanitize-html");
+
 
 const app = express();
 const HTTP_PORT = process.env.PORT || 8080; 
@@ -36,8 +38,20 @@ const upload = multer();
 
 
 app.set('views', __dirname + '/views')
+app.set('view engine', 'ejs');
+
  
 app.use(express.static(__dirname + '/public'))
+app.use((req, res, next) => {
+    let route = req.path;
+    // Normalize the route (ignore trailing slashes)
+    if (route !== "/" && route.slice(-1) === "/") {
+        route = route.slice(0, -1);
+    }
+    res.locals.activeRoute = route;
+    next();
+});
+
 
 
 app.get('/', (req, res) => {
@@ -46,12 +60,14 @@ app.get('/', (req, res) => {
 
 // Serve the about.html file
 app.get('/about', (req, res) => {
-    res.sendFile(path.join(__dirname, '/views/about.html'));
+    res.render('about');
+
 });
 
 // Step 2: Route for "/items/add" 
 app.get('/items/add', (req, res) => {
-    res.sendFile(path.join(__dirname, '/views/addItem.html'));
+    res.render('addItem');
+
 });
 
 //post item add
@@ -91,35 +107,67 @@ app.post('/items/add', upload.single("featureImage"), (req, res) => {
     }
 });
 
+function sanitize(content) {
+    return sanitizeHtml(content, {
+        allowedTags: ['b', 'i', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'p', 'br'],
+        allowedAttributes: {
+            a: ['href']
+        }
+    });
+}
+
+
 // Route for "/shop" (published items)
 app.get('/shop', (req, res) => {
-    storeService.getPublishedItems()
-        .then(publishedItems => {
-            res.json(publishedItems); 
-        })
-        .catch(err => {
-            res.status(500).json({ message: err });
+    const { category } = req.query;
+
+    const renderShop = (items) => {
+        res.render("shop", {
+            items: items,
+            sanitize: sanitize,
+            message: items.length === 0 ? "No items available." : null
         });
+    };
+
+    if (category) {
+        storeService.getPublishedItemsByCategory(category)
+            .then(renderShop)
+            .catch(err => res.render("shop", { items: [], sanitize, message: "Error: " + err }));
+    } else {
+        storeService.getPublishedItems()
+            .then(renderShop)
+            .catch(err => res.render("shop", { items: [], sanitize, message: "Error: " + err }));
+    }
 });
 
+
 // Route for "/items" (all items)
+// Rendered Items Page
 app.get('/items', (req, res) => {
     const { category, minDate } = req.query;
 
+    const handleResult = (items) => {
+        res.render("items", {
+            items: items,
+            message: items.length === 0 ? "No items found" : null
+        });
+    };
+
     if (category) {
         storeService.getItemsByCategory(category)
-            .then(items => res.json(items))
-            .catch(err => res.status(500).json({ message: err }));
+            .then(handleResult)
+            .catch(err => res.render("items", { items: [], message: "Error: " + err }));
     } else if (minDate) {
         storeService.getItemsByMinDate(minDate)
-            .then(items => res.json(items))
-            .catch(err => res.status(500).json({ message: err }));
+            .then(handleResult)
+            .catch(err => res.render("items", { items: [], message: "Error: " + err }));
     } else {
         storeService.getAllItems()
-            .then(items => res.json(items))
-            .catch(err => res.status(500).json({ message: err }));
+            .then(handleResult)
+            .catch(err => res.render("items", { items: [], message: "Error: " + err }));
     }
 });
+
 
 
 app.post('/items', (req, res) => {
@@ -147,10 +195,16 @@ app.get('/item/:value', (req, res) => {
 app.get('/categories', (req, res) => {
     storeService.getCategories()
         .then(categories => {
-            res.json(categories); 
+            res.render("categories", {
+                categories: categories,
+                message: categories.length === 0 ? "No categories found." : null
+            });
         })
         .catch(err => {
-            res.status(500).json({ message: err }); 
+            res.render("categories", {
+                categories: [],
+                message: "Error loading categories: " + err
+            });
         });
 });
 

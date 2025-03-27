@@ -68,6 +68,11 @@ module.exports = {
         const publishedItems = items.filter(item => item.published === true);
         return publishedItems.length ? Promise.resolve(publishedItems) : Promise.reject('No published items found');
     },
+    getPublishedItemsByCategory: (category) => {
+        const filtered = items.filter(item => item.published && item.category == category);
+        return filtered.length ? Promise.resolve(filtered) : Promise.reject("No published items found in this category");
+    },
+    
     getCategories: () => categories.length ? Promise.resolve(categories) : Promise.reject('No results returned for categories'),
     addItem,
     getItemsByCategory,

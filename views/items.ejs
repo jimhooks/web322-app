@@ -1,0 +1,36 @@
+<%- include('partials/header') %>
+
+<h1>All Items</h1>
+
+<% if (items && items.length > 0) { %>
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Post Date</th>
+                <th>Price</th>
+                <th>Category</th>
+                <th>Published</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% items.forEach(item => { %>
+                <tr>
+                    <td><%= item.id %></td>
+                    <td><%= item.title %></td>
+                    <td><%= item.postDate %></td>
+                    <td>$<%= parseFloat(item.price).toFixed(2) %></td>
+                    <td><%= item.category %></td>
+                    <td><%= item.published ? 'Yes' : 'No' %></td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+<% } else { %>
+    <div class="alert alert-warning">
+        <strong><%= message || "No items found." %></strong>
+    </div>
+<% } %>
+
+<%- include('partials/footer') %>

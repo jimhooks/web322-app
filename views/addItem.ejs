@@ -1,0 +1,59 @@
+<%- include('partials/header') %>
+
+<div class="row">
+    <aside class="col-md-3">
+        <h2>Coming Soon</h2>
+        <p>Stay tuned for exciting updates and new features!</p>
+    </aside>
+
+    <section class="main col-md-9">
+        <h2>Add a New Item</h2>
+        <form method="POST" action="/items/add" enctype="multipart/form-data">
+            <fieldset>
+                <legend>Feature Image</legend>
+                <div class="form-group">
+                    <input class="form-control" id="featureImage" name="featureImage" type="file" />
+                </div>
+            </fieldset>
+            <br />
+            <fieldset>
+                <legend>Post Content</legend>
+                <div class="form-group">
+                    <label for="title">Item Name:</label>
+                    <input class="form-control" id="title" name="title" type="text" required />
+                </div>
+                <div class="form-group">
+                    <label for="price">Price:</label>
+                    <input class="form-control" id="price" name="price" type="text" required />
+                </div>
+                <div class="form-group">
+                    <label for="body">Description:</label>
+                    <textarea class="form-control" id="body" name="body" rows="5" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="category">Category:</label>
+                    <select class="form-control" name="category" id="category" required>
+                        <option value="1">Home, Garden</option>
+                        <option value="2">Electronics, Computers, Video Games</option>
+                        <option value="3">Clothing</option>
+                        <option value="4">Sports & Outdoors</option>
+                        <option value="5">Pets</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="published">Visibility:</label>
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" name="published" id="published" />
+                            Published
+                        </label>
+                    </div>
+                </div>
+            </fieldset>
+            <hr />
+            <input type="submit" class="btn btn-primary" value="Add Item" />
+        </form>
+    </section>
+</div>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,19 @@
+<%- include('partials/header') %>
+
+<h1>Categories</h1>
+
+<% if (categories && categories.length > 0) { %>
+    <ul class="list-group">
+        <% categories.forEach(category => { %>
+            <li class="list-group-item">
+                <a href="/items?category=<%= category.id %>"><%= category.category %></a>
+            </li>
+        <% }); %>
+    </ul>
+<% } else { %>
+    <div class="alert alert-warning">
+        <strong><%= message || "No categories found." %></strong>
+    </div>
+<% } %>
+
+<%- include('partials/footer') %>
