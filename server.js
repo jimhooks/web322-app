@@ -19,6 +19,9 @@ const multer = require("multer");
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const sanitizeHtml = require("sanitize-html");
+const { sequelize, Item } = require('./models/Item');
+const { Op } = require('sequelize');
+
 
 
 const app = express();
@@ -73,14 +76,22 @@ app.get('/items/add', (req, res) => {
 //post item add
 app.post('/items/add', upload.single("featureImage"), (req, res) => {
     function processItem(imageUrl) {
-        req.body.featureImage = imageUrl;
-
-        storeService.addItem(req.body)
-            .then(() => res.redirect('/items'))
-            .catch(err => {
-                console.error("Error adding item:", err);
-                res.status(500).send("Error adding item");
-            });
+        Item.create({
+            title: req.body.title,
+            price: req.body.price,
+            category: req.body.category,
+            featureImage: imageUrl,
+            published: req.body.published === "on", // checkbox
+            postDate: new Date(),
+            body: req.body.body // this is your description textarea
+        })
+        .then(() => {
+            res.redirect('/items');
+        })
+        .catch(err => {
+            console.error("Error adding item:", err);
+            res.status(500).send("Error adding item");
+        });
     }
 
     if (req.file) {
@@ -107,6 +118,8 @@ app.post('/items/add', upload.single("featureImage"), (req, res) => {
     }
 });
 
+
+
 function sanitize(content) {
     return sanitizeHtml(content, {
         allowedTags: ['b', 'i', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'p', 'br'],
@@ -121,75 +134,84 @@ function sanitize(content) {
 app.get('/shop', (req, res) => {
     const { category } = req.query;
 
-    const renderShop = (items) => {
-        res.render("shop", {
-            items: items,
-            sanitize: sanitize,
-            message: items.length === 0 ? "No items available." : null
-        });
+    const query = {
+        where: {
+            published: true
+        }
     };
 
     if (category) {
-        storeService.getPublishedItemsByCategory(category)
-            .then(renderShop)
-            .catch(err => res.render("shop", { items: [], sanitize, message: "Error: " + err }));
-    } else {
-        storeService.getPublishedItems()
-            .then(renderShop)
-            .catch(err => res.render("shop", { items: [], sanitize, message: "Error: " + err }));
+        query.where.category = category;
     }
+
+    Item.findAll(query)
+        .then(items => {
+            res.render("shop", {
+                items,
+                sanitize: sanitize,
+                message: items.length === 0 ? "No items available." : null
+            });
+        })
+        .catch(err => {
+            res.render("shop", {
+                items: [],
+                sanitize: sanitize,
+                message: "Error: " + err
+            });
+        });
 });
+
 
 
 // Route for "/items" (all items)
 // Rendered Items Page
+
+
 app.get('/items', (req, res) => {
     const { category, minDate } = req.query;
+    let where = {};
 
-    const handleResult = (items) => {
-        res.render("items", {
-            items: items,
-            message: items.length === 0 ? "No items found" : null
+    if (category) where.category = category;
+    if (minDate) where.postDate = { [Op.gte]: new Date(minDate) };
+
+    Item.findAll({ where })
+        .then(items => {
+            res.render('items', {
+                items,
+                message: items.length === 0 ? "No items found" : null
+            });
+        })
+        .catch(err => {
+            console.error("Error fetching items:", err);
+            res.render("items", {
+                items: [],
+                message: "Error loading items"
+            });
         });
-    };
-
-    if (category) {
-        storeService.getItemsByCategory(category)
-            .then(handleResult)
-            .catch(err => res.render("items", { items: [], message: "Error: " + err }));
-    } else if (minDate) {
-        storeService.getItemsByMinDate(minDate)
-            .then(handleResult)
-            .catch(err => res.render("items", { items: [], message: "Error: " + err }));
-    } else {
-        storeService.getAllItems()
-            .then(handleResult)
-            .catch(err => res.render("items", { items: [], message: "Error: " + err }));
-    }
 });
+
 
 
 
 app.post('/items', (req, res) => {
-    const newItem = req.body; 
-
-    storeService.addItem(newItem)
-        .then(updatedItems => {
-            res.json(updatedItems); 
-        })
-        .catch(err => {
-            res.status(500).json({ message: err });
-        });
+    Item.create(req.body)
+        .then(item => res.json(item))
+        .catch(err => res.status(500).json({ message: "Error creating item" }));
 });
+
 
 //item/value route
 app.get('/item/:value', (req, res) => {
     const itemId = req.params.value;
 
-    storeService.getItemById(itemId)
-        .then(item => res.json(item))
-        .catch(err => res.status(404).json({ message: err }));
+    Item.findByPk(itemId)
+        .then(item => {
+            if (item) res.json(item);
+            else res.status(404).json({ message: "Item not found" });
+        })
+        .catch(err => res.status(500).json({ message: "Error retrieving item" }));
 });
+
 
 // Route for "/categories" (all categories)
 app.get('/categories', (req, res) => {
@@ -214,15 +236,16 @@ app.get('*', (req, res) => {
 });
 
 // Initialize data and start the server only if initialization succeeds
-storeService.initialize()
-    .then(() => {
-        
-        console.log('Initialization successful. Starting server...');
-        app.listen(HTTP_PORT, () => {
-            console.log(`Express http server listening on port ${HTTP_PORT}`); 
-        });
-    })
-    .catch(err => {
-        // If initialization fails, log the error 
-        console.error("Initialization failed:", err);
+sequelize.sync({ force: false }).then(() => {
+    console.log('Database synced');
+    return storeService.initialize();
+  }).then(() => {
+    console.log('StoreService initialized (categories loaded)');
+    app.listen(HTTP_PORT, () => {
+      console.log(`Server running on port ${HTTP_PORT}`);
     });
+  }).catch(err => {
+    console.error('Initialization failed:', err);
+  });
+  
+  
